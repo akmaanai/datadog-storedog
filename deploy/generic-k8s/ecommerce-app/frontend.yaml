@@ -1,0 +1,98 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    service: frontend
+    app: ecommerce
+    tags.datadoghq.com/env: "production"
+    tags.datadoghq.com/service: "store-frontend"
+    tags.datadoghq.com/version: "1.0"
+  name: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: frontend
+      app: ecommerce
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        service: frontend
+        app: ecommerce
+        tags.datadoghq.com/env: "production"
+        tags.datadoghq.com/service: "store-frontend"
+        tags.datadoghq.com/version: "1.0"
+    spec:
+      containers:
+        - args:
+            - docker-entrypoint.sh
+          command:
+            - sh
+          env:
+            - name: DB_USERNAME
+              value: user
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: pw
+                  name: db-password
+            - name: DD_SERVICE
+              value: "store-frontend"
+            - name: DD_ENV
+              value: "production"
+            - name: DD_VERSION
+              value: "1.0"
+            - name: DD_AGENT_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: DD_LOGS_INJECTION
+              value: "true"
+            - name: DD_ANALYTICS_ENABLED
+              value: "true"
+            - name: DD_PROFILING_ENABLED
+              value: "true"
+            - name: DD_CLIENT_TOKEN
+              value: pubd064d3ce07e5552af4c0a3e1007a1ae8
+            - name: DD_APPLICATION_ID
+              value: 3e7b4989-f471-4508-80cc-f93519e1ec20
+            # - name: DD_CLIENT_TOKEN
+            #   value: <your_client_token>
+            # - name: DD_APPLICATION_ID
+            #   value: <your_application_id>
+            - name: DD_SITE
+              value: "datadoghq.com"
+          image: ddtraining/storefront-fixed:latest
+          imagePullPolicy: Always
+          name: ecommerce-spree-observability
+          ports:
+            - containerPort: 3000
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100Mi
+            limits: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    service: frontend
+    app: ecommerce
+  name: frontend
+spec:
+  ports:
+    - port: 3000
+      protocol: TCP
+      targetPort: 3000
+      name: http
+  selector:
+    service: frontend
+    app: ecommerce
+  type: LoadBalancer
